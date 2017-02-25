@@ -43,8 +43,14 @@ do -- Handle command-line arguments and options
 	end
 end
 
-log.trace([[Starting Luastow using this state:
-]] .. inspect(args))
+if args.verbosity >= 2 then
+	log.trace("Starting Luastow using these options:")
+	local _ = {}
+	for k, v in pairs(args) do
+		_[#_ + 1] = "\t" .. k .. " = " .. v
+	end
+	print("{\n" .. table.concat(_, "\n") .. "\n}")
+end
 
 do -- Decide what to do
 	if args.restow then

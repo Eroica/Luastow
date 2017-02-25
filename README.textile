@@ -35,7 +35,7 @@ h3. Requirements
 Luastow currently needs:
 
 * LuaFileSystem
-* kikito’s ["inspect":https://github.com/kikito/inspect.lua/blob/master/inspect.lua].
+* argparse
 
 These packages are found in _luarocks_. I’ll add a @rockspec@ file soon.
 
