@@ -15,9 +15,16 @@ h2. Features/To-do List
 
 h2. Usage
 
-Luastow can be executed like a Lua script. There’s an _amalgamated_ version (using ["lua-amalg":https://github.com/siffiejoe/lua-amalg]) inside @bin/@ that correctly sets up all required modules. You’ll just have to make it executable.
+Luastow can be executed like a Lua script. There’s an _amalgamated_ version (using ["lua-amalg":https://github.com/siffiejoe/lua-amalg]) inside @luastow/bin/@ that correctly sets up all required modules. You’ll just have to make it executable, and you can make Luastow stow itself, e.g.:
 
-bc.. A portable GNU Stow implementation in Lua.
+bc. $ luastow/bin/luastow --target /usr/local luastow
+
+But if you (like me) have @luastow@ or @stow@ directory inside @/usr/local@ where you keep all your programs, you probably first want to copy it into that directory, navigate to it, and:
+
+bc. $ luastow/bin/luastow luastow
+
+bc.. $ luastow -h
+A portable GNU Stow implementation in Lua.
 
 Arguments:
    source_dir            Source directory.
@@ -26,11 +33,13 @@ Options:
    -t <target>, --target <target>
                          Target directory. (default: /Users/Leye/Desktop)
    -D, --delete          Delete from luastow directory.
-   -R, --restow          Restow source directory (remove from luastow directory, then stow into target directory again.
+   -R, --restow          Restow source directory (remove from target directory, then stow into target directory again.
    -v, --verbose         Prints debug messages.
    -h, --help            Show this help message and exit.
 
-p. Debug messages can be made more verbose with @-vv@.
+p. If no @--target@ is given, the default value will be the directory above the current directory (i.e. @..@).
+
+Debug messages can be made more verbose with @-vv@.
 
 h3. Requirements
 

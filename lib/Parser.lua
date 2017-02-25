@@ -10,7 +10,7 @@ local function parse_cmd_arguments ()
 	cmd_parser:argument("source_dir", "Source directory.")
 	cmd_parser:option("-t --target", "Target directory.", trim_directory(lfs.currentdir()))
 	cmd_parser:flag("-D --delete", "Delete from luastow directory.")
-	cmd_parser:flag("-R --restow", "Restow source directory (remove from luastow directory, then stow into target directory again.")
+	cmd_parser:flag("-R --restow", "Restow source directory (remove from target directory, then stow into target directory again.")
 	cmd_parser:flag("-v --verbose", "Prints debug messages.")
 		:count "0-2"
 		:target "verbosity"
