@@ -1,10 +1,9 @@
-local inspect = require "inspect"
 local lfs = require "lfs"
 local log = require "lib/log"
 
 local Parser = require "lib/Parser"
 local Stower = require "lib/Stower"
-
+local PATH_SEPARATOR = "/"
 
 local args = Parser.parse_cmd_arguments()
 
@@ -32,8 +31,8 @@ do -- Handle command-line arguments and options
 	end
 
 	-- Handle `--verbose'
-	-- Keep in mind field `verbosity' starts at 0
 	local _verbosity_levels = {"error", "debug", "trace"}
+	-- Keep in mind field `verbosity' starts at 0
 	log.level = _verbosity_levels[args.verbosity + 1]
 
 	-- Handle `--delete' and `--restow'

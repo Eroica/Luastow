@@ -5,6 +5,12 @@ local LFS_FILE_EXISTS_ERROR = "File exists"
 
 local function create_link_function (source_file, target_dir, filename)
 	log.trace("Will create link: " .. target_dir .. PATH_SEPARATOR .. filename)
+	local target_file = target_dir .. PATH_SEPARATOR .. filename
+	if lfs.attributes(target_file) ~= nil then
+		log.error("File " .. target_file .. " already exists in target directory! Aborting all operations ...")
+		os.exit(-1)
+	end
+
 	return function ()
 		log.debug("Linking " .. source_file .. " -> " .. target_dir .. PATH_SEPARATOR .. filename)
 
