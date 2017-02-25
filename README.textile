@@ -1,0 +1,52 @@
+h1. Luastow
+
+Luastow is a Lua implementation of ["GNU Stow":https://www.gnu.org/software/stow/].
+
+I was looking for something like GNU Stow for Windows, and only found a ["Python implementation":https://github.com/ericsubach/stow-lite]. However, since I mainly use Lua, and feel that it’s easier to just compile and link @lua.exe@ on Windows than going down the rabbit hole that is Python’s Windows distribution, I re-created GNU Stow myself, and plan to extend it with features that I find useful for me as well.
+
+h2. Features/To-do List
+
+* ☑ Stow a directory.
+* ☑ Delete links of a stowed directory.
+  Luastow doesn’t delete directories that end up empty after deleting links.
+* ☐ Merge @info@ files commonly used in GNU-related programs.
+* ☐ Restow a directory from anywhere instead of having to navigate to the @luastow@ directory.
+* ☐ Better error management if a file that is being linked is already present in the target directory.
+
+h2. Usage
+
+bc.. A portable GNU Stow implementation in Lua.
+
+Arguments:
+   source_dir            Source directory.
+
+Options:
+   -t <target>, --target <target>
+                         Target directory. (default: /Users/Leye/Desktop)
+   -D, --delete          Delete from luastow directory.
+   -R, --restow          Restow source directory (remove from luastow directory, then stow into target directory again.
+   -v, --verbose         Prints debug messages.
+   -h, --help            Show this help message and exit.
+
+p. Debug messages can be made more verbose with @-vv@.
+
+h3. Requirements
+
+Luastow currently needs:
+
+* LuaFileSystem
+* kikito’s ["inspect":https://github.com/kikito/inspect.lua/blob/master/inspect.lua].
+
+These packages are found in _luarocks_. I’ll add a @rockspec@ file soon.
+
+h3. Disclaimer
+
+Luastow was written on a free Saturday afternoon. I’ve used and tested it for me on OS X, but I’ll first want to add better error management and unit tests before I can deem it to be used safely.
+
+h2. License
+
+!https://img.shields.io/badge/License-zlib-blue.svg!
+
+See attached @LICENSE@ file.
+
+Luastow uses @log.lua@ by ["rxi":https://github.com/rxi/log.lua], licensed under the MIT License.
