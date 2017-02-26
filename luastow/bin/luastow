@@ -2,229 +2,6 @@
 
 do
 
-package.preload[ "lib/log" ] = assert( (loadstring or load)(
-"--\
--- log.lua\
---\
--- Copyright (c) 2016 rxi\
---\
--- This library is free software; you can redistribute it and/or modify it\
--- under the terms of the MIT license. See LICENSE for details.\
---\
-\
-local log = { _version = \"0.1.0\" }\
-\
-log.usecolor = true\
-log.outfile = nil\
-log.level = \"trace\"\
-\
-\
-local modes = {\
-  { name = \"trace\", color = \"\\27[34m\", },\
-  { name = \"debug\", color = \"\\27[36m\", },\
-  { name = \"info\",  color = \"\\27[32m\", },\
-  { name = \"warn\",  color = \"\\27[33m\", },\
-  { name = \"error\", color = \"\\27[31m\", },\
-  { name = \"fatal\", color = \"\\27[35m\", },\
-}\
-\
-\
-local levels = {}\
-for i, v in ipairs(modes) do\
-  levels[v.name] = i\
-end\
-\
-\
-local round = function(x, increment)\
-  increment = increment or 1\
-  x = x / increment\
-  return (x > 0 and math.floor(x + .5) or math.ceil(x - .5)) * increment\
-end\
-\
-\
-local _tostring = tostring\
-\
-local tostring = function(...)\
-  local t = {}\
-  for i = 1, select('#', ...) do\
-    local x = select(i, ...)\
-    if type(x) == \"number\" then\
-      x = round(x, .01)\
-    end\
-    t[#t + 1] = _tostring(x)\
-  end\
-  return table.concat(t, \" \")\
-end\
-\
-\
-for i, x in ipairs(modes) do\
-  local nameupper = x.name:upper()\
-  log[x.name] = function(...)\
-    \
-    -- Return early if we're below the log level\
-    if i < levels[log.level] then\
-      return\
-    end\
-\
-    local msg = tostring(...)\
-    local info = debug.getinfo(2, \"Sl\")\
-    local lineinfo = info.short_src .. \":\" .. info.currentline\
-\
-    -- Output to console\
-    print(string.format(\"%s[%-6s%s]%s %s: %s\",\
-                        log.usecolor and x.color or \"\",\
-                        nameupper,\
-                        os.date(\"%H:%M:%S\"),\
-                        log.usecolor and \"\\27[0m\" or \"\",\
-                        lineinfo,\
-                        msg))\
-\
-    -- Output to log file\
-    if log.outfile then\
-      local fp = io.open(log.outfile, \"a\")\
-      local str = string.format(\"[%-6s%s] %s: %s\\n\",\
-                                nameupper, os.date(), lineinfo, msg)\
-      fp:write(str)\
-      fp:close()\
-    end\
-\
-  end\
-end\
-\
-\
-return log\
-"
-, '@'.."./lib/log.lua" ) )
-
-package.preload[ "lib/Stower" ] = assert( (loadstring or load)(
-"local log = require \"lib/log\"\
-\
-local PATH_SEPARATOR = \"/\"\
-local LFS_FILE_EXISTS_ERROR = \"File exists\"\
-\
-local function create_link_function (source_file, target_dir, filename)\
-\9log.trace(\"Will create link: \" .. target_dir .. PATH_SEPARATOR .. filename)\
-\9local target_file = target_dir .. PATH_SEPARATOR .. filename\
-\9if lfs.attributes(target_file) ~= nil then\
-\9\9log.error(\"File \" .. target_file .. \" already exists in target directory! Aborting all operations ...\")\
-\9\9os.exit(-1)\
-\9end\
-\
-\9return function ()\
-\9\9log.debug(\"Linking \" .. source_file .. \" -> \" .. target_dir .. PATH_SEPARATOR .. filename)\
-\
-\9\9local _, error_msg = lfs.link(source_file,\
-\9\9\9\9\9\9\9\9\9  target_dir .. PATH_SEPARATOR .. filename,\
-\9\9\9\9\9\9\9\9\9  true)\
-\9\9if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then\
-\9\9\9log.error(error_msg)\
-\9\9\9os.exit(-1)\
-\9\9end\
-\9end\
-end\
-\
-local function delete_link_function (link_name)\
-\9log.trace(\"Will delete link: \" .. link_name)\
-\9return function ()\
-\9\9log.debug(\"Deleting link: \" .. link_name)\
-\
-\9\9local _, error_msg = os.remove(link_name)\
-\9\9if _ == nil then\
-\9\9\9log.error(error_msg)\
-\9\9\9os.exit(-1)\
-\9\9end\
-\9end\
-end\
-\
-local function create_dir_function (dir_name, target_dir)\
-\9log.trace(\"Will create directory: \" .. target_dir .. PATH_SEPARATOR .. dir_name)\
-\9return function ()\
-\9\9log.debug(\"Creating directory \" .. target_dir .. PATH_SEPARATOR .. dir_name)\
-\
-\9\9lfs.chdir(target_dir)\
-\9\9local _, error_msg = lfs.mkdir(dir_name)\
-\9\9if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then\
-\9\9\9log.error(error_msg)\
-\9\9\9os.exit(-1)\
-\9\9end\
-\9end\
-end\
-\
-local function create_stow_transactions (dir, target_dir, STOW_TRANSACTIONS)\
-\9lfs.chdir(dir)\
-\9local current_dir = lfs.currentdir()\
-\9for file in lfs.dir(lfs.currentdir()) do\
-\9\9if file:sub(1, 1) ~= \".\" and file ~= \"..\" and lfs.attributes(file).mode == \"file\" then\
-\9\9\9STOW_TRANSACTIONS[#STOW_TRANSACTIONS + 1] = create_link_function(current_dir .. PATH_SEPARATOR .. file, target_dir, file)\
-\9\9elseif file ~= \".\" and file ~= \"..\" and lfs.attributes(file).mode == \"directory\" then\
-\9\9\9STOW_TRANSACTIONS[#STOW_TRANSACTIONS + 1] = create_dir_function(file, target_dir)\
-\9\9\9create_stow_transactions(file, target_dir .. PATH_SEPARATOR .. file, STOW_TRANSACTIONS)\
-\9\9end\
-\9end\
-\9lfs.chdir(\"..\")\
-end\
-\
-local function create_delete_transactions (dir, target_dir, DELETE_TRANSACTIONS)\
-\9lfs.chdir(dir)\
-\9local current_dir = lfs.currentdir()\
-\9for file in lfs.dir(lfs.currentdir()) do\
-\9\9if file:sub(1, 1) ~= \".\" and file ~= \"..\" and lfs.attributes(file).mode == \"file\" then\
-\9\9\9DELETE_TRANSACTIONS[#DELETE_TRANSACTIONS + 1] = delete_link_function(target_dir .. PATH_SEPARATOR .. file)\
-\9\9elseif file ~= \".\" and file ~= \"..\" and lfs.attributes(file).mode == \"directory\" then\
-\9\9\9create_delete_transactions(file, target_dir .. PATH_SEPARATOR .. file, DELETE_TRANSACTIONS)\
-\9\9end\
-\9end\
-\9lfs.chdir(\"..\")\
-end\
-\
-local function Stow (args)\
-\9local STOW_TRANSACTIONS = {}\
-\9create_stow_transactions(args.source_dir, args.target, STOW_TRANSACTIONS)\
-\
-\9for i=1, #STOW_TRANSACTIONS do\
-\9\9STOW_TRANSACTIONS[i]()\
-\9end\
-end\
-\
-local function Delete (args)\
-\9local DELETE_TRANSACTIONS = {}\
-\9create_delete_transactions(args.source_dir, args.target, DELETE_TRANSACTIONS)\
-\
-\9for i=1, #DELETE_TRANSACTIONS do\
-\9\9DELETE_TRANSACTIONS[i]()\
-\9end\
-end\
-\
-\
-return {Stow = Stow,\
-\9\9Delete = Delete}"
-, '@'.."./lib/Stower.lua" ) )
-
-package.preload[ "lib/Parser" ] = assert( (loadstring or load)(
-"local argparse = require \"argparse\"\
-local lfs = require \"lfs\"\
-\
-local function trim_directory (path)\
-\9return path:sub(1, path:find(\"/[^/]*$\") - 1)\
-end\
-\
-local function parse_cmd_arguments ()\
-\9local cmd_parser = argparse(\"script\", \"A portable GNU Stow implementation in Lua.\")\
-\9cmd_parser:argument(\"source_dir\", \"Source directory.\")\
-\9cmd_parser:option(\"-t --target\", \"Target directory.\", trim_directory(lfs.currentdir()))\
-\9cmd_parser:flag(\"-D --delete\", \"Delete from luastow directory.\")\
-\9cmd_parser:flag(\"-R --restow\", \"Restow source directory (remove from target directory, then stow into target directory again.\")\
-\9cmd_parser:flag(\"-v --verbose\", \"Prints debug messages.\")\
-\9\9:count \"0-2\"\
-\9\9:target \"verbosity\"\
-\
-\9return cmd_parser:parse()\
-end\
-\
-return {trim_directory = trim_directory,\
-\9\9parse_cmd_arguments = parse_cmd_arguments}"
-, '@'.."./lib/Parser.lua" ) )
-
 package.preload[ "argparse" ] = assert( (loadstring or load)(
 "-- The MIT License (MIT)\
 \
@@ -1409,6 +1186,270 @@ end\
 "
 , '@'.."/usr/local/stow/luarocks-2.4.2/share/lua/5.3/argparse.lua" ) )
 
+package.preload[ "lib/log" ] = assert( (loadstring or load)(
+"--\
+-- log.lua\
+--\
+-- Copyright (c) 2016 rxi\
+--\
+-- This library is free software; you can redistribute it and/or modify it\
+-- under the terms of the MIT license. See LICENSE for details.\
+--\
+\
+local log = { _version = \"0.1.0\" }\
+\
+log.usecolor = true\
+log.outfile = nil\
+log.level = \"trace\"\
+\
+\
+local modes = {\
+  { name = \"trace\", color = \"\\27[34m\", },\
+  { name = \"debug\", color = \"\\27[36m\", },\
+  { name = \"info\",  color = \"\\27[32m\", },\
+  { name = \"warn\",  color = \"\\27[33m\", },\
+  { name = \"error\", color = \"\\27[31m\", },\
+  { name = \"fatal\", color = \"\\27[35m\", },\
+}\
+\
+\
+local levels = {}\
+for i, v in ipairs(modes) do\
+  levels[v.name] = i\
+end\
+\
+\
+local round = function(x, increment)\
+  increment = increment or 1\
+  x = x / increment\
+  return (x > 0 and math.floor(x + .5) or math.ceil(x - .5)) * increment\
+end\
+\
+\
+local _tostring = tostring\
+\
+local tostring = function(...)\
+  local t = {}\
+  for i = 1, select('#', ...) do\
+    local x = select(i, ...)\
+    if type(x) == \"number\" then\
+      x = round(x, .01)\
+    end\
+    t[#t + 1] = _tostring(x)\
+  end\
+  return table.concat(t, \" \")\
+end\
+\
+\
+for i, x in ipairs(modes) do\
+  local nameupper = x.name:upper()\
+  log[x.name] = function(...)\
+    \
+    -- Return early if we're below the log level\
+    if i < levels[log.level] then\
+      return\
+    end\
+\
+    local msg = tostring(...)\
+    local info = debug.getinfo(2, \"Sl\")\
+    local lineinfo = info.short_src .. \":\" .. info.currentline\
+\
+    -- Output to console\
+    print(string.format(\"%s[%-6s%s]%s %s: %s\",\
+                        log.usecolor and x.color or \"\",\
+                        nameupper,\
+                        os.date(\"%H:%M:%S\"),\
+                        log.usecolor and \"\\27[0m\" or \"\",\
+                        lineinfo,\
+                        msg))\
+\
+    -- Output to log file\
+    if log.outfile then\
+      local fp = io.open(log.outfile, \"a\")\
+      local str = string.format(\"[%-6s%s] %s: %s\\n\",\
+                                nameupper, os.date(), lineinfo, msg)\
+      fp:write(str)\
+      fp:close()\
+    end\
+\
+  end\
+end\
+\
+\
+return log\
+"
+, '@'.."./lib/log.lua" ) )
+
+package.preload[ "lib/Stower" ] = assert( (loadstring or load)(
+"local log = require \"lib/log\"\
+\
+local PATH_SEPARATOR = \"/\"\
+local LFS_FILE_EXISTS_ERROR = \"File exists\"\
+\
+local function create_link (source_file, target_file)\
+\9log.debug(\"Linking: \" .. source_file .. \" -> \" .. target_file)\
+\
+\9local _, error_msg = lfs.link(target_file, source_file, true)\
+\9if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then\
+\9\9log.error(error_msg)\
+\9\9os.exit(-1)\
+\9end\
+end\
+\
+local function create_dir (target_dir)\
+\9if lfs.attributes(target_dir) == nil then\
+\9\9log.debug(\"Creating directory: \" .. target_dir)\
+\
+\9\9local _, error_msg = lfs.mkdir(target_dir)\
+\9\9if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then\
+\9\9\9log.error(error_msg)\
+\9\9\9os.exit(-1)\
+\9\9end\
+\9else\
+\9\9log.debug(\"Directory `\" .. target_dir .. \"' already exists! Skipping ...\")\
+\9end\
+end\
+\
+local function delete_link (link_name)\
+\9log.debug(\"Deleting link: \" .. link_name)\
+\
+\9local _, error_msg = os.remove(link_name)\
+\9if _ == nil then\
+\9\9log.error(error_msg)\
+\9\9os.exit(-1)\
+\9end\
+end\
+\
+local function check_file (filename, path)\
+\9return filename:sub(1, 1) ~= \".\" and filename ~= \"..\"\
+\9       and lfs.attributes(path .. \"/\" .. filename).mode == \"file\"\
+end\
+\
+local function check_dir (dir_name, path)\
+\9return dir_name:sub(1, 1) ~= \".\" and dir_name ~= \"..\"\
+\9       and lfs.attributes(path .. \"/\" .. dir_name).mode == \"directory\"\
+end\
+\
+\
+local function substitute_path (full_path, replaced_path, new_path)\
+\9return new_path .. PATH_SEPARATOR .. full_path:sub(#replaced_path + 2)\
+end\
+\
+local function iterate_dir (dir_name, name_table)\
+\9local names = name_table or {}\
+\
+\9local full_path\
+\9for name in lfs.dir(dir_name) do\
+\9\9full_path = dir_name .. \"/\" .. name\
+\
+\9\9if check_file(name, dir_name) then\
+\9\9\9names[#names + 1] = {full_path, \"f\"}\
+\9\9elseif check_dir(name, dir_name) then\
+\9\9\9names[#names + 1] = {full_path, \"d\"}\
+\9\9\9iterate_dir(full_path, names)\
+\9\9end\
+\9end\
+\
+\9return names\
+end\
+\
+\
+local function Stow (args)\
+\9local stow_transactions = iterate_dir(args.source_dir)\
+\9local dir_transactions = {}\
+\9local name\
+\
+\9-- Put directories into dir_transactions\
+\9for i=#stow_transactions, 1, -1 do\
+\9\9name = stow_transactions[i]\
+\9\9if name[#name] == \"d\" then\
+\9\9\9table.insert(dir_transactions, 1, table.remove(stow_transactions, i))\
+\9\9end\
+\9end\
+\
+\9-- Check that no file already exists in target directory\
+\9for i=1, #stow_transactions do\
+\9\9name = stow_transactions[i]\
+\9\9-- local target_file = args.target .. PATH_SEPARATOR .. name[1]:sub(#args.source_dir + 2)\
+\9\9local target_file = substitute_path(name[1], args.source_dir, args.target)\
+\9\9if lfs.attributes(target_file) ~= nil then\
+\9\9\9log.error(\"File \" .. target_file .. \" already exists in target directory! Aborting all operations ...\")\
+\9\9\9os.exit(-1)\
+\9\9end\
+\9end\
+\
+\9-- Create directories\
+\9for i=1, #dir_transactions do\
+\9\9name = dir_transactions[i]\
+\9\9create_dir(substitute_path(name[1], args.source_dir, args.target))\
+\9end\
+\
+\9-- Create links\
+\9for i=1, #stow_transactions do\
+\9\9name = stow_transactions[i]\
+\9\9create_link(substitute_path(name[1], args.source_dir, args.target), name[1])\
+\9end\
+end\
+\
+local function Delete (args)\
+\9local delete_transactions = iterate_dir(args.source_dir)\
+\9local name\
+\
+\9-- Remove directories\
+\9for i=#delete_transactions, 1, -1 do\
+\9\9name = delete_transactions[i]\
+\9\9if name[#name] == \"d\" then\
+\9\9\9table.remove(delete_transactions, i)\
+\9\9end\
+\9end\
+\
+\9-- Check that file really exists in target location\
+\9for i=1, #delete_transactions do\
+\9\9name = delete_transactions[i]\
+\9\9local target_link = substitute_path(name[1], args.source_dir, args.target)\
+\9\9if lfs.attributes(target_link) == nil then\
+\9\9\9log.error(\"Link \" .. target_link .. \" doesn't seem to exist in target directory! Aborting all operations ...\")\
+\9\9\9os.exit(-1)\
+\9\9end\
+\9end\
+\
+\9-- Delete links\
+\9for i=1, #delete_transactions do\
+\9\9name = delete_transactions[i]\
+\9\9delete_link(substitute_path(name[1], args.source_dir, args.target))\
+\9end\
+end\
+\
+return {Stow = Stow,\
+        Delete = Delete}"
+, '@'.."./lib/Stower.lua" ) )
+
+package.preload[ "lib/Parser" ] = assert( (loadstring or load)(
+"local argparse = require \"argparse\"\
+local lfs = require \"lfs\"\
+\
+local function trim_directory (path)\
+\9return path:sub(1, path:find(\"/[^/]*$\") - 1)\
+end\
+\
+local function parse_cmd_arguments ()\
+\9local cmd_parser = argparse(\"script\", \"A portable GNU Stow implementation in Lua.\")\
+\9cmd_parser:argument(\"source_dir\", \"Source directory.\")\
+\9cmd_parser:option(\"-t --target\", \"Target directory.\", trim_directory(lfs.currentdir()))\
+\9cmd_parser:flag(\"-D --delete\", \"Delete from luastow directory.\")\
+\9cmd_parser:flag(\"-R --restow\", \"Restow source directory (remove from target directory, then stow into target directory again.\")\
+\9cmd_parser:flag(\"-g --global\", \"Looks for `source_dir' in `/usr/local' (not available on Windows)\")\
+\9cmd_parser:flag(\"-v --verbose\", \"Prints debug messages.\")\
+\9\9:count \"0-2\"\
+\9\9:target \"verbosity\"\
+\
+\9return cmd_parser:parse()\
+end\
+\
+return {trim_directory = trim_directory,\
+\9\9parse_cmd_arguments = parse_cmd_arguments}"
+, '@'.."./lib/Parser.lua" ) )
+
 end
 
 assert( (loadstring or load)(
@@ -1417,31 +1458,65 @@ local log = require \"lib/log\"\
 \
 local Parser = require \"lib/Parser\"\
 local Stower = require \"lib/Stower\"\
+\
 local PATH_SEPARATOR = \"/\"\
+local LUASTOW_DEFAULT_DIR = \"/usr/local/luastow\"\
+local ON_WINDOWS = package.config:sub(1, 1) == \"\\\\\"\
+\
 \
 local args = Parser.parse_cmd_arguments()\
 \
 do -- Handle command-line arguments and options\
-\9-- Handle `source_dir' argument\
-\9local _ = lfs.attributes(args.source_dir)\
-\9if _ == nil then\
-\9\9log.error(\"Source `\" .. lfs.currentdir() .. PATH_SEPARATOR .. args.source_dir .. \"' doesn't seem to exist!\")\
-\9\9os.exit(-1)\
-\9elseif _.mode ~= \"directory\" then\
-\9\9log.error(\"Source must be a directory!\")\
-\9\9os.exit(-1)\
-\9end\
+\9if args.global then\
+\9\9if ON_WINDOWS then\
+\9\9\9log.error(\"Sorry but this feature isn't available on Windows!\")\
+\9\9\9os.exit(-1)\
+\9\9end\
 \
-\9-- Handle `--target'\
-\9if args.target == \".\" then args.target = lfs.currentdir() end\
-\9if args.target == \"..\" then args.target = Parser.trim_directory(lfs.currentdir()) end\
-\9_ = lfs.attributes(args.target)\
-\9if _ == nil then\
-\9\9log.error(\"Target `\" .. lfs.currentdir() .. PATH_SEPARATOR .. args.target .. \"' doesn't seem to exist!\")\
-\9\9os.exit(-1)\
-\9elseif _.mode ~= \"directory\" then\
-\9\9log.error(\"Target must be a directory!\")\
-\9\9os.exit(-1)\
+\9\9if lfs.chdir(LUASTOW_DEFAULT_DIR) == nil then\
+\9\9\9log.error(\"Default luastow directory (`/usr/local/luastow') doesn't seem to exist!\")\
+\9\9\9os.exit(-1)\
+\9\9else\
+\9\9\9-- Go to default luastow directory, and look for a directory that matches `source_dir'\
+\9\9\9local _source_dir\
+\9\9\9for dir in lfs.dir(lfs.currentdir()) do\
+\9\9\9\9print(\"checking \" .. dir)\
+\9\9\9\9if dir:find(args.source_dir) ~= nil then\
+\9\9\9\9\9_source_dir = LUASTOW_DEFAULT_DIR .. PATH_SEPARATOR .. dir\
+\9\9\9\9end\
+\9\9\9end\
+\
+\9\9\9if _source_dir == nil then\
+\9\9\9\9log.error(\"Source dir `\" .. args.source_dir .. \"' was not found in \" .. LUASTOW_DEFAULT_DIR .. \"!\")\
+\9\9\9\9os.exit(-1)\
+\9\9\9else\
+\9\9\9\9args.source_dir = _source_dir\
+\9\9\9\9args.target = Parser.trim_directory(LUASTOW_DEFAULT_DIR)\
+\9\9\9end\
+\9\9end\
+\9else\
+\9\9-- Handle `source_dir' argument\
+\9\9local _ = lfs.attributes(args.source_dir)\
+\9\9if _ == nil then\
+\9\9\9log.error(\"Source `\" .. lfs.currentdir() .. PATH_SEPARATOR .. args.source_dir .. \"' doesn't seem to exist!\")\
+\9\9\9os.exit(-1)\
+\9\9elseif _.mode ~= \"directory\" then\
+\9\9\9log.error(\"Source must be a directory!\")\
+\9\9\9os.exit(-1)\
+\9\9end\
+\9\9args.source_dir = lfs.currentdir() .. PATH_SEPARATOR .. args.source_dir\
+\
+\9\9-- Handle `--target'\
+\9\9if args.target == \".\" then args.target = lfs.currentdir() end\
+\9\9if args.target == \"..\" then args.target = Parser.trim_directory(lfs.currentdir()) end\
+\9\9_ = lfs.attributes(args.target)\
+\9\9if _ == nil then\
+\9\9\9log.error(\"Target `\" .. lfs.currentdir() .. PATH_SEPARATOR .. args.target .. \"' doesn't seem to exist!\")\
+\9\9\9os.exit(-1)\
+\9\9elseif _.mode ~= \"directory\" then\
+\9\9\9log.error(\"Target must be a directory!\")\
+\9\9\9os.exit(-1)\
+\9\9end\
 \9end\
 \
 \9-- Handle `--verbose'\
@@ -1460,7 +1535,7 @@ if args.verbosity >= 2 then\
 \9log.trace(\"Starting Luastow using these options:\")\
 \9local _ = {}\
 \9for k, v in pairs(args) do\
-\9\9_[#_ + 1] = \"\\t\" .. k .. \" = \" .. v\
+\9\9_[#_ + 1] = \"\\t\" .. k .. \" = \" .. tostring(v)\
 \9end\
 \9print(\"{\\n\" .. table.concat(_, \"\\n\") .. \"\\n}\")\
 end\

@@ -10,8 +10,8 @@ h2. Features/To-do List
 * ☑ Delete links of a stowed directory.
   Luastow doesn’t delete directories that end up empty after deleting links.
 * ☑ Better error management if a file that is being linked is already present in the target directory.
+* ☑ Restow a directory from anywhere instead of having to navigate to the @luastow@ directory.
 * ☐ Merge @info@ files commonly used in GNU-related programs.
-* ☐ Restow a directory from anywhere instead of having to navigate to the @luastow@ directory.
 
 h2. Usage
 

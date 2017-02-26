@@ -3,99 +3,139 @@ local log = require "lib/log"
 local PATH_SEPARATOR = "/"
 local LFS_FILE_EXISTS_ERROR = "File exists"
 
-local function create_link_function (source_file, target_dir, filename)
-	log.trace("Will create link: " .. target_dir .. PATH_SEPARATOR .. filename)
-	local target_file = target_dir .. PATH_SEPARATOR .. filename
-	if lfs.attributes(target_file) ~= nil then
-		log.error("File " .. target_file .. " already exists in target directory! Aborting all operations ...")
+local function create_link (source_file, target_file)
+	log.debug("Linking: " .. source_file .. " -> " .. target_file)
+
+	local _, error_msg = lfs.link(target_file, source_file, true)
+	if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then
+		log.error(error_msg)
 		os.exit(-1)
 	end
+end
 
-	return function ()
-		log.debug("Linking " .. source_file .. " -> " .. target_dir .. PATH_SEPARATOR .. filename)
+local function create_dir (target_dir)
+	if lfs.attributes(target_dir) == nil then
+		log.debug("Creating directory: " .. target_dir)
 
-		local _, error_msg = lfs.link(source_file,
-									  target_dir .. PATH_SEPARATOR .. filename,
-									  true)
+		local _, error_msg = lfs.mkdir(target_dir)
 		if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then
 			log.error(error_msg)
 			os.exit(-1)
 		end
+	else
+		log.debug("Directory `" .. target_dir .. "' already exists! Skipping ...")
 	end
 end
 
-local function delete_link_function (link_name)
-	log.trace("Will delete link: " .. link_name)
-	return function ()
-		log.debug("Deleting link: " .. link_name)
+local function delete_link (link_name)
+	log.debug("Deleting link: " .. link_name)
 
-		local _, error_msg = os.remove(link_name)
-		if _ == nil then
-			log.error(error_msg)
-			os.exit(-1)
+	local _, error_msg = os.remove(link_name)
+	if _ == nil then
+		log.error(error_msg)
+		os.exit(-1)
+	end
+end
+
+local function check_file (filename, path)
+	return filename:sub(1, 1) ~= "." and filename ~= ".."
+	       and lfs.attributes(path .. "/" .. filename).mode == "file"
+end
+
+local function check_dir (dir_name, path)
+	return dir_name:sub(1, 1) ~= "." and dir_name ~= ".."
+	       and lfs.attributes(path .. "/" .. dir_name).mode == "directory"
+end
+
+
+local function substitute_path (full_path, replaced_path, new_path)
+	return new_path .. PATH_SEPARATOR .. full_path:sub(#replaced_path + 2)
+end
+
+local function iterate_dir (dir_name, name_table)
+	local names = name_table or {}
+
+	local full_path
+	for name in lfs.dir(dir_name) do
+		full_path = dir_name .. "/" .. name
+
+		if check_file(name, dir_name) then
+			names[#names + 1] = {full_path, "f"}
+		elseif check_dir(name, dir_name) then
+			names[#names + 1] = {full_path, "d"}
+			iterate_dir(full_path, names)
 		end
 	end
+
+	return names
 end
 
-local function create_dir_function (dir_name, target_dir)
-	log.trace("Will create directory: " .. target_dir .. PATH_SEPARATOR .. dir_name)
-	return function ()
-		log.debug("Creating directory " .. target_dir .. PATH_SEPARATOR .. dir_name)
-
-		lfs.chdir(target_dir)
-		local _, error_msg = lfs.mkdir(dir_name)
-		if _ == nil and error_msg ~= LFS_FILE_EXISTS_ERROR then
-			log.error(error_msg)
-			os.exit(-1)
-		end
-	end
-end
-
-local function create_stow_transactions (dir, target_dir, STOW_TRANSACTIONS)
-	lfs.chdir(dir)
-	local current_dir = lfs.currentdir()
-	for file in lfs.dir(lfs.currentdir()) do
-		if file:sub(1, 1) ~= "." and file ~= ".." and lfs.attributes(file).mode == "file" then
-			STOW_TRANSACTIONS[#STOW_TRANSACTIONS + 1] = create_link_function(current_dir .. PATH_SEPARATOR .. file, target_dir, file)
-		elseif file ~= "." and file ~= ".." and lfs.attributes(file).mode == "directory" then
-			STOW_TRANSACTIONS[#STOW_TRANSACTIONS + 1] = create_dir_function(file, target_dir)
-			create_stow_transactions(file, target_dir .. PATH_SEPARATOR .. file, STOW_TRANSACTIONS)
-		end
-	end
-	lfs.chdir("..")
-end
-
-local function create_delete_transactions (dir, target_dir, DELETE_TRANSACTIONS)
-	lfs.chdir(dir)
-	local current_dir = lfs.currentdir()
-	for file in lfs.dir(lfs.currentdir()) do
-		if file:sub(1, 1) ~= "." and file ~= ".." and lfs.attributes(file).mode == "file" then
-			DELETE_TRANSACTIONS[#DELETE_TRANSACTIONS + 1] = delete_link_function(target_dir .. PATH_SEPARATOR .. file)
-		elseif file ~= "." and file ~= ".." and lfs.attributes(file).mode == "directory" then
-			create_delete_transactions(file, target_dir .. PATH_SEPARATOR .. file, DELETE_TRANSACTIONS)
-		end
-	end
-	lfs.chdir("..")
-end
 
 local function Stow (args)
-	local STOW_TRANSACTIONS = {}
-	create_stow_transactions(args.source_dir, args.target, STOW_TRANSACTIONS)
+	local stow_transactions = iterate_dir(args.source_dir)
+	local dir_transactions = {}
+	local name
 
-	for i=1, #STOW_TRANSACTIONS do
-		STOW_TRANSACTIONS[i]()
+	-- Put directories into dir_transactions
+	for i=#stow_transactions, 1, -1 do
+		name = stow_transactions[i]
+		if name[#name] == "d" then
+			table.insert(dir_transactions, 1, table.remove(stow_transactions, i))
+		end
+	end
+
+	-- Check that no file already exists in target directory
+	for i=1, #stow_transactions do
+		name = stow_transactions[i]
+		-- local target_file = args.target .. PATH_SEPARATOR .. name[1]:sub(#args.source_dir + 2)
+		local target_file = substitute_path(name[1], args.source_dir, args.target)
+		if lfs.attributes(target_file) ~= nil then
+			log.error("File " .. target_file .. " already exists in target directory! Aborting all operations ...")
+			os.exit(-1)
+		end
+	end
+
+	-- Create directories
+	for i=1, #dir_transactions do
+		name = dir_transactions[i]
+		create_dir(substitute_path(name[1], args.source_dir, args.target))
+	end
+
+	-- Create links
+	for i=1, #stow_transactions do
+		name = stow_transactions[i]
+		create_link(substitute_path(name[1], args.source_dir, args.target), name[1])
 	end
 end
 
 local function Delete (args)
-	local DELETE_TRANSACTIONS = {}
-	create_delete_transactions(args.source_dir, args.target, DELETE_TRANSACTIONS)
+	local delete_transactions = iterate_dir(args.source_dir)
+	local name
 
-	for i=1, #DELETE_TRANSACTIONS do
-		DELETE_TRANSACTIONS[i]()
+	-- Remove directories
+	for i=#delete_transactions, 1, -1 do
+		name = delete_transactions[i]
+		if name[#name] == "d" then
+			table.remove(delete_transactions, i)
+		end
+	end
+
+	-- Check that file really exists in target location
+	for i=1, #delete_transactions do
+		name = delete_transactions[i]
+		local target_link = substitute_path(name[1], args.source_dir, args.target)
+		if lfs.attributes(target_link) == nil then
+			log.error("Link " .. target_link .. " doesn't seem to exist in target directory! Aborting all operations ...")
+			os.exit(-1)
+		end
+	end
+
+	-- Delete links
+	for i=1, #delete_transactions do
+		name = delete_transactions[i]
+		delete_link(substitute_path(name[1], args.source_dir, args.target))
 	end
 end
 
-
 return {Stow = Stow,
-		Delete = Delete}
+        Delete = Delete}
