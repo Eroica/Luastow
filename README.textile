@@ -31,13 +31,13 @@ Arguments:
 
 Options:
    -t <target>, --target <target>
-                         Target directory. (default: /Users/Leye/Desktop)
+                         Target directory. (default: ..)
    -D, --delete          Delete from luastow directory.
    -R, --restow          Restow source directory (remove from target directory, then stow into target directory again.
    -v, --verbose         Prints debug messages.
    -h, --help            Show this help message and exit.
 
-p. If no @--target@ is given, the default value will be the directory above the current directory (i.e. @..@).
+p. If no @--target@ is given, the default value will be the directory above the current directory (i.e. @..@, it will be expanded to an absolute path).
 
 Debug messages can be made more verbose with @-vv@.
 
