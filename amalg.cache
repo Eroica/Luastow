@@ -1,7 +1,7 @@
 return {
-  [ "lib/Stower" ] = "L",
   [ "argparse" ] = "L",
-  [ "lib/log" ] = "L",
+  [ "lib/Stower" ] = "L",
   [ "lfs" ] = "C",
   [ "lib/Parser" ] = "L",
+  [ "lib/log" ] = "L",
 }
