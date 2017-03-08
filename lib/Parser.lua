@@ -2,6 +2,7 @@ local argparse = require "argparse"
 local lfs = require "lfs"
 
 local function trim_directory (path)
+	path = path:gsub("\\", "/")
 	return path:sub(1, path:find("/[^/]*$") - 1)
 end
 
@@ -20,4 +21,4 @@ local function parse_cmd_arguments ()
 end
 
 return {trim_directory = trim_directory,
-		parse_cmd_arguments = parse_cmd_arguments}
+        parse_cmd_arguments = parse_cmd_arguments}
