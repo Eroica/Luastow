@@ -4,6 +4,8 @@ local PATH_SEPARATOR = "/"
 local LFS_FILE_EXISTS_ERROR = "File exists"
 
 local function create_link (source_file, target_file)
+	source_file = source_file:gsub("\\", "/")
+	target_file = target_file:gsub("\\", "/")
 	log.debug("Linking: " .. source_file .. " -> " .. target_file)
 
 	local _, error_msg = lfs.link(target_file, source_file, true)

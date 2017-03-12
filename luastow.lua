@@ -4,9 +4,9 @@ local log = require "lib/log"
 local Parser = require "lib/Parser"
 local Stower = require "lib/Stower"
 
-local PATH_SEPARATOR = "/"
+local PATH_SEPARATOR = package.config:sub(1, 1)
+local ON_WINDOWS = PATH_SEPARATOR == "\\"
 local LUASTOW_DEFAULT_DIR = "/usr/local/luastow"
-local ON_WINDOWS = package.config:sub(1, 1) == "\\"
 
 
 local args = Parser.parse_cmd_arguments()
