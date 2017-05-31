@@ -39,6 +39,11 @@ local function delete_link (link_name)
 	end
 end
 
+local function check_link (filename, path)
+	return filename:sub(1, 1) ~= "." and filename ~= ".."
+	       and lfs.symlinkattributes(path .. "/" .. filename).mode == "link"
+end
+
 local function check_file (filename, path)
 	return filename:sub(1, 1) ~= "." and filename ~= ".."
 	       and lfs.attributes(path .. "/" .. filename).mode == "file"
@@ -61,7 +66,9 @@ local function iterate_dir (dir_name, name_table)
 	for name in lfs.dir(dir_name) do
 		full_path = dir_name .. "/" .. name
 
-		if check_file(name, dir_name) then
+		if check_link(name, dir_name) then
+			names[#names + 1] = {full_path, "link"}
+		elseif check_file(name, dir_name) then
 			names[#names + 1] = {full_path, "f"}
 		elseif check_dir(name, dir_name) then
 			names[#names + 1] = {full_path, "d"}
@@ -126,7 +133,8 @@ local function Delete (args)
 	for i=1, #delete_transactions do
 		name = delete_transactions[i]
 		local target_link = substitute_path(name[1], args.source_dir, args.target)
-		if lfs.attributes(target_link) == nil then
+		if lfs.attributes(target_link) == nil
+		and lfs.symlinkattributes(target_link) == nil then
 			log.error("Link " .. target_link .. " doesn't seem to exist in target directory! Aborting all operations ...")
 			os.exit(-1)
 		end
