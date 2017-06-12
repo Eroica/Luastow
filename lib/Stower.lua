@@ -94,13 +94,15 @@ local function Stow (args)
 	end
 
 	-- Check that no file already exists in target directory
-	for i=1, #stow_transactions do
-		name = stow_transactions[i]
-		-- local target_file = args.target .. PATH_SEPARATOR .. name[1]:sub(#args.source_dir + 2)
-		local target_file = substitute_path(name[1], args.source_dir, args.target)
-		if lfs.attributes(target_file) ~= nil then
-			log.error("File " .. target_file .. " already exists in target directory! Aborting all operations ...")
-			os.exit(-1)
+	if args.force ~= true then
+		for i=1, #stow_transactions do
+			name = stow_transactions[i]
+			-- local target_file = args.target .. PATH_SEPARATOR .. name[1]:sub(#args.source_dir + 2)
+			local target_file = substitute_path(name[1], args.source_dir, args.target)
+			if lfs.attributes(target_file) ~= nil then
+				log.error("File " .. target_file .. " already exists in target directory! Aborting all operations ...")
+				os.exit(-1)
+			end
 		end
 	end
 

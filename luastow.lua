@@ -52,7 +52,6 @@ do -- Handle command-line arguments and options
 		if args.source_dir:sub(1, 1) ~= "/" and args.source_dir:sub(2, 3) ~= ":\\" then
 			args.source_dir = lfs.currentdir() .. PATH_SEPARATOR .. args.source_dir
 		end
-		print(args.source_dir)
 
 		-- Handle `--target'
 		if args.target == "." then args.target = lfs.currentdir() end
