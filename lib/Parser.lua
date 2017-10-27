@@ -13,7 +13,6 @@ local function parse_cmd_arguments ()
 	cmd_parser:flag("-D --delete", "Delete from luastow directory.")
 	cmd_parser:flag("-R --restow", "Restow source directory (remove from target directory, then stow into target directory again.")
 	cmd_parser:flag("-f --force", "Skip check for existing files in target directory")
-	cmd_parser:flag("-g --global", "Looks for `source_dir' in `/usr/local' (not available on Windows)")
 	cmd_parser:flag("-v --verbose", "Prints debug messages.")
 		:count "0-2"
 		:target "verbosity"
