@@ -1,0 +1,31 @@
+T= link
+
+# Lua includes directory
+LUA_INC= "C:\Lua-5.3.4"
+# Lua library
+LUA_LIB= "C:\Lua-5.3.4\Lua5.3.4.lib"
+
+# Windows library
+WIN_LIBS = "Shlwapi.lib"
+
+LIBNAME= $T.dll
+
+# Compilation directives
+WARN= /O2
+INCS= /I$(LUA_INC)
+CFLAGS= /MD $(WARN) $(INCS)
+CC= cl
+
+SRCS= $T.c
+OBJS= $T.obj
+
+lib: link.dll
+
+.c.obj:
+	$(CC) /c /Fo$@ $(CFLAGS) $<
+
+link.dll: $(OBJS)
+	link /dll /out:link.dll $(OBJS) "$(LUA_LIB)" "$(WIN_LIBS)"
+
+clean:
+	del link.dll $(OBJS) $T.lib $T.exp
